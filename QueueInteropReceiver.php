@@ -11,6 +11,8 @@
 
 namespace Sam\Symfony\Bridge\EnqueueMessage;
 
+use Interop\Amqp\AmqpContext;
+use Interop\Amqp\AmqpQueue;
 use Interop\Queue\PsrContext;
 use Symfony\Component\Message\Transport\ReceiverInterface;
 use Symfony\Component\Message\Transport\Serialization\DecoderInterface;
@@ -59,6 +61,13 @@ class QueueInteropReceiver implements ReceiverInterface
     {
         $destination = $this->context->createQueue($this->queueName);
         $consumer = $this->context->createConsumer($destination);
+
+        if ($this->context instanceof AmqpContext) {
+            $destination = $this->context->createQueue($this->queueName);
+            $destination->addFlag(AmqpQueue::FLAG_DURABLE);
+
+            $this->context->declareQueue($destination);
+        }
 
         while (true) {
             if (null === ($message = $consumer->receive($this->receiveTimeout))) {

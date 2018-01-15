@@ -11,8 +11,8 @@
 
 namespace Sam\Symfony\Bridge\EnqueueMessage\Bundle\DependencyInjection;
 
-use Sam\Symfony\Bridge\EnqueueMessage\EnqueueReceiver;
-use Sam\Symfony\Bridge\EnqueueMessage\EnqueueSender;
+use Sam\Symfony\Bridge\EnqueueMessage\QueueInteropReceiver;
+use Sam\Symfony\Bridge\EnqueueMessage\QueueInteropSender;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Definition;
 use Symfony\Component\DependencyInjection\Reference;
@@ -30,7 +30,7 @@ class EnqueueBridgeExtension extends Extension
             return;
         }
 
-        $receiverDefinition = new Definition(EnqueueReceiver::class, [
+        $receiverDefinition = new Definition(QueueInteropReceiver::class, [
             new Reference('message.transport.default_decoder'),
             new Reference('enqueue.transport.default.context'),
             $config['queue'],
@@ -38,11 +38,11 @@ class EnqueueBridgeExtension extends Extension
         $receiverDefinition->setPublic(true);
         $receiverDefinition->addTag('message_receiver');
 
-        $senderDefinition = new Definition(EnqueueSender::class, [
+        $senderDefinition = new Definition(QueueInteropSender::class, [
             new Reference('message.transport.default_encoder'),
             new Reference('enqueue.transport.default.context'),
-            $config['queue'],
-            $config['topic'] ?: $config['queue']
+            $config['queue'] ?: $config['topic'],
+            !!$config['topic']
         ]);
         $senderDefinition->setPublic(true);
         $senderDefinition->addTag('message_sender');

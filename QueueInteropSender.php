@@ -11,6 +11,9 @@
 
 namespace Sam\Symfony\Bridge\EnqueueMessage;
 
+use Interop\Amqp\AmqpContext;
+use Interop\Amqp\AmqpQueue;
+use Interop\Amqp\AmqpTopic;
 use Interop\Queue\Exception;
 use Interop\Queue\PsrContext;
 use Symfony\Component\Message\Transport\SenderInterface;
@@ -82,12 +85,27 @@ class QueueInteropSender implements SenderInterface
      */
     public function send($message)
     {
-        $encodedMessage = $this->messageEncoder->encode($message);
+        if ($this->context instanceof AmqpContext) {
+            if ($this->isTopic) {
+                $destination = $this->context->createTopic($this->destinationName);
+                $destination->setType(AmqpTopic::TYPE_FANOUT);
+                $destination->addFlag(AmqpTopic::FLAG_DURABLE);
 
-        $destination = $this->isTopic ?
-            $this->context->createTopic($this->destinationName) :
-            $this->context->createQueue($this->destinationName)
-        ;
+                $this->context->declareTopic($destination);
+            } else {
+                $destination = $this->context->createQueue($this->destinationName);
+                $destination->addFlag(AmqpQueue::FLAG_DURABLE);
+
+                $this->context->declareQueue($destination);
+            }
+        } else {
+            $destination = $this->isTopic ?
+                $this->context->createTopic($this->destinationName) :
+                $this->context->createQueue($this->destinationName)
+            ;
+        }
+
+        $encodedMessage = $this->messageEncoder->encode($message);
 
         $message = $this->context->createMessage(
             $encodedMessage['body'],
