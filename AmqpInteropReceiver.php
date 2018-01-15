@@ -78,7 +78,7 @@ class AmqpInteropReceiver implements ReceiverInterface
 
             return false;
         });
-        
+
         while (true) {
             $currentConsumer = null;
             $currentMessage = null;
