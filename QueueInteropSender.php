@@ -11,6 +11,7 @@
 
 namespace Sam\Symfony\Bridge\EnqueueMessage;
 
+use Interop\Queue\Exception;
 use Interop\Queue\PsrContext;
 use Symfony\Component\Message\Transport\SenderInterface;
 use Symfony\Component\Message\Transport\Serialization\EncoderInterface;
@@ -35,12 +36,12 @@ class QueueInteropSender implements SenderInterface
     /**
      * @var string
      */
-    private $queueName;
+    private $destinationName;
 
     /**
-     * @var string
+     * @var bool
      */
-    private $topicName;
+    private $isTopic;
 
     /**
      * @var float
@@ -57,17 +58,23 @@ class QueueInteropSender implements SenderInterface
      */
     private $priority;
 
-    public function __construct(EncoderInterface $messageEncoder, PsrContext $context, string $queueName = null, string $topicName = null)
-    {
+    public function __construct(
+        EncoderInterface $messageEncoder,
+        PsrContext $context,
+        string $destinationName,
+        bool $isTopic = true,
+        float $deliveryDelay = null,
+        float $timeToLive = null,
+        int $priority = null
+    ) {
         $this->messageEncoder = $messageEncoder;
         $this->context = $context;
 
-        $this->queueName = $queueName;
-        $this->topicName = $topicName;
-
-        if (false == ($this->queueName || $this->topicName)) {
-            throw new \LogicException('Either queueName or topicName argument should be set.');
-        }
+        $this->destinationName = $destinationName;
+        $this->isTopic = $isTopic;
+        $this->deliveryDelay = $deliveryDelay;
+        $this->timeToLive = $timeToLive;
+        $this->priority = $priority;
     }
 
     /**
@@ -77,13 +84,10 @@ class QueueInteropSender implements SenderInterface
     {
         $encodedMessage = $this->messageEncoder->encode($message);
 
-
-        if ($this->topicName) {
-            $destination = $this->context->createTopic($this->topicName);
-        } else {
-            $destination = $this->context->createQueue($this->queueName);
-        }
-
+        $destination = $this->isTopic ?
+            $this->context->createTopic($this->destinationName) :
+            $this->context->createQueue($this->destinationName)
+        ;
 
         $message = $this->context->createMessage(
             $encodedMessage['body'],
@@ -103,54 +107,10 @@ class QueueInteropSender implements SenderInterface
             $producer->setTimeToLive($this->timeToLive);
         }
 
-        $producer->send($destination, $message);
-    }
-
-    /**
-     * @return float
-     */
-    public function getDeliveryDelay(): float
-    {
-        return $this->deliveryDelay;
-    }
-
-    /**
-     * @param float $deliveryDelay
-     */
-    public function setDeliveryDelay(float $deliveryDelay): void
-    {
-        $this->deliveryDelay = $deliveryDelay;
-    }
-
-    /**
-     * @return float
-     */
-    public function getTimeToLive(): float
-    {
-        return $this->timeToLive;
-    }
-
-    /**
-     * @param float $timeToLive
-     */
-    public function setTimeToLive(float $timeToLive): void
-    {
-        $this->timeToLive = $timeToLive;
-    }
-
-    /**
-     * @return int
-     */
-    public function getPriority(): int
-    {
-        return $this->priority;
-    }
-
-    /**
-     * @param int $priority
-     */
-    public function setPriority(int $priority): void
-    {
-        $this->priority = $priority;
+        try {
+            $producer->send($destination, $message);
+        } catch (Exception $e) {
+            throw new SendingMessageFailedException($e->getMessage(), null, $e);
+        }
     }
 }
