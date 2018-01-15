@@ -1,4 +1,14 @@
 <?php
+
+/*
+ * This file is part of the Symfony package.
+ *
+ * (c) Fabien Potencier <fabien@symfony.com>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
 namespace Sam\Symfony\Bridge\EnqueueMessage;
 
 use Interop\Queue\PsrContext;
@@ -8,6 +18,11 @@ use Symfony\Component\Message\Asynchronous\Transport\ReceivedMessage;
 use Symfony\Component\Message\MessageBusInterface;
 use Symfony\Component\Serializer\Encoder\DecoderInterface;
 
+/**
+ * The processor could be used with any queue interop compatible consumer, for example Enqueue's QueueConsumer.
+ *
+ * @author Max Kotliar <kotlyar.maksim@gmail.com>
+ */
 class MessageBusProcessor implements PsrProcessor
 {
     /**
@@ -46,6 +61,8 @@ class MessageBusProcessor implements PsrProcessor
             return self::REJECT;
         } catch (RequeueMessageException $e) {
             return self::REQUEUE;
+        } catch (\Throwable $e) {
+            return self::REJECT;
         }
     }
 }

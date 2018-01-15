@@ -41,7 +41,7 @@ class EnqueueBridgeExtension extends Extension
         $senderDefinition = new Definition(QueueInteropSender::class, [
             new Reference('message.transport.default_encoder'),
             new Reference('enqueue.transport.default.context'),
-            $config['queue'] ?: $config['topic'],
+            $config['topic'] ?: $config['queue'],
             !!$config['topic']
         ]);
         $senderDefinition->setPublic(true);

@@ -20,7 +20,7 @@ use Symfony\Component\Message\Transport\Serialization\DecoderInterface;
 /**
  * Symfony Message receivers to get messages from php-enqueue consumers.
  *
- * @author Samuel Roze <samuel.roze@gmail.com>
+ * @author Max Kotliar <kotlyar.maksim@gmail.com>
  */
 class QueueInteropReceiver implements ReceiverInterface
 {
@@ -86,6 +86,8 @@ class QueueInteropReceiver implements ReceiverInterface
                 $consumer->reject($message);
             } catch (RequeueMessageException $e) {
                 $consumer->reject($message, true);
+            } catch (\Throwable $e) {
+                $consumer->reject($message);
             }
         }
     }
