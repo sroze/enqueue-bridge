@@ -11,9 +11,9 @@
 
 namespace Sam\Symfony\Bridge\EnqueueMessage;
 
-use Interop\Queue\Exception;
-use Interop\Queue\PsrContext;
-use Symfony\Component\Message\Transport\SenderInterface;
+use Interop\Amqp\AmqpContext;
+use Interop\Amqp\AmqpQueue;
+use Interop\Amqp\AmqpTopic;
 use Symfony\Component\Message\Transport\Serialization\EncoderInterface;
 
 /**
@@ -21,18 +21,8 @@ use Symfony\Component\Message\Transport\Serialization\EncoderInterface;
  *
  * @author Samuel Roze <samuel.roze@gmail.com>
  */
-class QueueInteropSender implements SenderInterface
+class AmqpInteropSender extends QueueInteropSender
 {
-    /**
-     * @var EncoderInterface
-     */
-    private $messageEncoder;
-
-    /**
-     * @var PsrContext
-     */
-    private $context;
-
     /**
      * @var string
      */
@@ -44,37 +34,31 @@ class QueueInteropSender implements SenderInterface
     private $isTopic;
 
     /**
-     * @var float
+     * @var AmqpContext
      */
-    private $deliveryDelay;
-
-    /**
-     * @var float
-     */
-    private $timeToLive;
-
-    /**
-     * @var int
-     */
-    private $priority;
+    private $context;
 
     public function __construct(
         EncoderInterface $messageEncoder,
-        PsrContext $context,
+        AmqpContext $context,
         string $destinationName,
         bool $isTopic = true,
         float $deliveryDelay = null,
         float $timeToLive = null,
         int $priority = null
     ) {
-        $this->messageEncoder = $messageEncoder;
-        $this->context = $context;
+        parent::__construct(
+            $messageEncoder,
+            $context,
+            $destinationName,
+            $isTopic,
+            $deliveryDelay,
+            $timeToLive,
+            $priority
+        );
 
         $this->destinationName = $destinationName;
         $this->isTopic = $isTopic;
-        $this->deliveryDelay = $deliveryDelay;
-        $this->timeToLive = $timeToLive;
-        $this->priority = $priority;
     }
 
     /**
@@ -82,35 +66,19 @@ class QueueInteropSender implements SenderInterface
      */
     public function send($message)
     {
-        $encodedMessage = $this->messageEncoder->encode($message);
+        if ($this->isTopic) {
+            $destination = $this->context->createTopic($this->destinationName);
+            $destination->setType(AmqpTopic::TYPE_FANOUT);
+            $destination->addFlag(AmqpTopic::FLAG_DURABLE);
 
-        $destination = $this->isTopic ?
-            $this->context->createTopic($this->destinationName) :
-            $this->context->createQueue($this->destinationName)
-        ;
+            $this->context->declareTopic($destination);
+        } else {
+            $destination = $this->context->createQueue($this->destinationName);
+            $destination->addFlag(AmqpQueue::FLAG_DURABLE);
 
-        $message = $this->context->createMessage(
-            $encodedMessage['body'],
-            $encodedMessage['properties'] ?? [],
-            $encodedMessage['headers'] ?? []
-        );
-
-        $producer = $this->context->createProducer();
-
-        if (null !== $this->deliveryDelay) {
-            $producer->setDeliveryDelay($this->deliveryDelay);
-        }
-        if (null !== $this->priority) {
-            $producer->setPriority($this->priority);
-        }
-        if (null !== $this->timeToLive) {
-            $producer->setTimeToLive($this->timeToLive);
+            $this->context->declareQueue($destination);
         }
 
-        try {
-            $producer->send($destination, $message);
-        } catch (Exception $e) {
-            throw new SendingMessageFailedException($e->getMessage(), null, $e);
-        }
+        parent::send($message);
     }
 }
