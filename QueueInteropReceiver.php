@@ -13,6 +13,8 @@ namespace Sam\Symfony\Bridge\EnqueueMessage;
 
 use Interop\Amqp\AmqpContext;
 use Interop\Amqp\AmqpQueue;
+use Interop\Amqp\AmqpTopic;
+use Interop\Amqp\Impl\AmqpBind;
 use Interop\Queue\PsrContext;
 use Symfony\Component\Message\Transport\ReceiverInterface;
 use Symfony\Component\Message\Transport\Serialization\DecoderInterface;
@@ -35,21 +37,26 @@ class QueueInteropReceiver implements ReceiverInterface
     private $context;
 
     /**
-     * @var float
-     */
-    private $receiveTimeout;
-
-
-    /**
      * @var string
      */
     private $queueName;
 
-    public function __construct(DecoderInterface $messageDecoder, PsrContext $context, string $queueName)
+    /**
+     * @var string
+     */
+    private $topicName;
+
+    /**
+     * @var float
+     */
+    private $receiveTimeout;
+
+    public function __construct(DecoderInterface $messageDecoder, PsrContext $context, string $queueName, string $topicName)
     {
         $this->messageDecoder = $messageDecoder;
         $this->context = $context;
         $this->queueName = $queueName;
+        $this->topicName = $topicName;
 
         $this->receiveTimeout = 1000; // 1s
     }
@@ -59,14 +66,20 @@ class QueueInteropReceiver implements ReceiverInterface
      */
     public function receive(): iterable
     {
-        $destination = $this->context->createQueue($this->queueName);
-        $consumer = $this->context->createConsumer($destination);
+        $queue = $this->context->createQueue($this->queueName);
+        $consumer = $this->context->createConsumer($queue);
 
         if ($this->context instanceof AmqpContext) {
-            $destination = $this->context->createQueue($this->queueName);
-            $destination->addFlag(AmqpQueue::FLAG_DURABLE);
+            $topic = $this->context->createTopic($this->topicName);
+            $topic->setType(AmqpTopic::TYPE_FANOUT);
+            $topic->addFlag(AmqpTopic::FLAG_DURABLE);
+            $this->context->declareTopic($topic);
 
-            $this->context->declareQueue($destination);
+            $queue = $this->context->createQueue($this->queueName);
+            $queue->addFlag(AmqpQueue::FLAG_DURABLE);
+            $this->context->declareQueue($queue);
+
+            $this->context->bind(new AmqpBind($queue, $topic));
         }
 
         while (true) {

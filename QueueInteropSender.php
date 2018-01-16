@@ -14,6 +14,7 @@ namespace Sam\Symfony\Bridge\EnqueueMessage;
 use Interop\Amqp\AmqpContext;
 use Interop\Amqp\AmqpQueue;
 use Interop\Amqp\AmqpTopic;
+use Interop\Amqp\Impl\AmqpBind;
 use Interop\Queue\Exception;
 use Interop\Queue\PsrContext;
 use Symfony\Component\Message\Transport\SenderInterface;
@@ -39,12 +40,12 @@ class QueueInteropSender implements SenderInterface
     /**
      * @var string
      */
-    private $destinationName;
+    private $topicName;
 
     /**
-     * @var bool
+     * @var string
      */
-    private $isTopic;
+    private $queueName;
 
     /**
      * @var float
@@ -64,17 +65,17 @@ class QueueInteropSender implements SenderInterface
     public function __construct(
         EncoderInterface $messageEncoder,
         PsrContext $context,
-        string $destinationName,
-        bool $isTopic = true,
+        string $topicName,
+        string $queueName,
         float $deliveryDelay = null,
         float $timeToLive = null,
         int $priority = null
     ) {
         $this->messageEncoder = $messageEncoder;
         $this->context = $context;
+        $this->topicName = $topicName;
+        $this->queueName = $queueName;
 
-        $this->destinationName = $destinationName;
-        $this->isTopic = $isTopic;
         $this->deliveryDelay = $deliveryDelay;
         $this->timeToLive = $timeToLive;
         $this->priority = $priority;
@@ -85,24 +86,18 @@ class QueueInteropSender implements SenderInterface
      */
     public function send($message)
     {
+        $topic = $this->context->createTopic($this->topicName);
         if ($this->context instanceof AmqpContext) {
-            if ($this->isTopic) {
-                $destination = $this->context->createTopic($this->destinationName);
-                $destination->setType(AmqpTopic::TYPE_FANOUT);
-                $destination->addFlag(AmqpTopic::FLAG_DURABLE);
+            $topic = $this->context->createTopic($this->topicName);
+            $topic->setType(AmqpTopic::TYPE_FANOUT);
+            $topic->addFlag(AmqpTopic::FLAG_DURABLE);
+            $this->context->declareTopic($topic);
 
-                $this->context->declareTopic($destination);
-            } else {
-                $destination = $this->context->createQueue($this->destinationName);
-                $destination->addFlag(AmqpQueue::FLAG_DURABLE);
+            $queue = $this->context->createQueue($this->queueName);
+            $queue->addFlag(AmqpQueue::FLAG_DURABLE);
+            $this->context->declareQueue($queue);
 
-                $this->context->declareQueue($destination);
-            }
-        } else {
-            $destination = $this->isTopic ?
-                $this->context->createTopic($this->destinationName) :
-                $this->context->createQueue($this->destinationName)
-            ;
+            $this->context->bind(new AmqpBind($queue, $topic));
         }
 
         $encodedMessage = $this->messageEncoder->encode($message);
@@ -126,7 +121,7 @@ class QueueInteropSender implements SenderInterface
         }
 
         try {
-            $producer->send($destination, $message);
+            $producer->send($topic, $message);
         } catch (Exception $e) {
             throw new SendingMessageFailedException($e->getMessage(), null, $e);
         }

@@ -33,7 +33,8 @@ class EnqueueBridgeExtension extends Extension
         $receiverDefinition = new Definition(QueueInteropReceiver::class, [
             new Reference('message.transport.default_decoder'),
             new Reference('enqueue.transport.default.context'),
-            $config['queue'],
+            $config['topic'] ?: 'messages',
+            $config['queue'] ?: 'messages',
         ]);
         $receiverDefinition->setPublic(true);
         $receiverDefinition->addTag('message_receiver');
@@ -41,8 +42,11 @@ class EnqueueBridgeExtension extends Extension
         $senderDefinition = new Definition(QueueInteropSender::class, [
             new Reference('message.transport.default_encoder'),
             new Reference('enqueue.transport.default.context'),
-            $config['topic'] ?: $config['queue'],
-            !!$config['topic']
+            $config['topic'] ?: 'messages',
+            $config['queue'] ?: 'messages',
+            $config['deliveryDelay'],
+            $config['timeToLive'],
+            $config['priority'],
         ]);
         $senderDefinition->setPublic(true);
         $senderDefinition->addTag('message_sender');
