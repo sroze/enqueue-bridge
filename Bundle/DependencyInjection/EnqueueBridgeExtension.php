@@ -32,7 +32,7 @@ class EnqueueBridgeExtension extends Extension
         }
 
         $receiverDefinition = new Definition(QueueInteropReceiver::class, array(
-            new Reference('message.transport.default_decoder'),
+            new Reference('messenger.transport.default_decoder'),
             new Definition(AmqpContextManager::class, array(
                 new Reference('enqueue.transport.default.context'),
             )),
@@ -40,10 +40,10 @@ class EnqueueBridgeExtension extends Extension
             $config['queue'] ?: 'messages',
             $container->getParameter('kernel.debug')
         ));
-        $receiverDefinition->addTag('message.receiver');
+        $receiverDefinition->addTag('messenger.receiver');
 
         $senderDefinition = new Definition(QueueInteropSender::class, array(
-            new Reference('message.transport.default_encoder'),
+            new Reference('messenger.transport.default_encoder'),
             new Definition(AmqpContextManager::class, array(
                 new Reference('enqueue.transport.default.context'),
             )),
@@ -55,7 +55,7 @@ class EnqueueBridgeExtension extends Extension
             $config['priority'],
         ));
         $senderDefinition->setPublic(true);
-        $senderDefinition->addTag('message.sender');
+        $senderDefinition->addTag('messenger.sender');
 
         $container->setDefinitions([
             'enqueue_bridge.receiver' => $receiverDefinition,

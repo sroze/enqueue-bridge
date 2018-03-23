@@ -14,8 +14,8 @@ namespace Sam\Symfony\Bridge\EnqueueMessage;
 use Interop\Queue\PsrContext;
 use Interop\Queue\PsrMessage;
 use Interop\Queue\PsrProcessor;
-use Symfony\Component\Message\Asynchronous\Transport\ReceivedMessage;
-use Symfony\Component\Message\MessageBusInterface;
+use Symfony\Component\Messenger\Asynchronous\Transport\ReceivedMessage;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Serializer\Encoder\DecoderInterface;
 
 /**
