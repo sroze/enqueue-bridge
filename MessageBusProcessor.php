@@ -43,11 +43,11 @@ class MessageBusProcessor implements PsrProcessor
 
     public function process(PsrMessage $message, PsrContext $context)
     {
-        $busMessage = $this->messageDecoder->decode([
+        $busMessage = $this->messageDecoder->decode(array(
             'body' => $message->getBody(),
             'headers' => $message->getHeaders(),
             'properties' => $message->getProperties(),
-        ]);
+        ));
 
         if (!$busMessage instanceof ReceivedMessage) {
             $busMessage = new ReceivedMessage($message);

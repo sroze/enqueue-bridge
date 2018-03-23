@@ -38,7 +38,7 @@ class EnqueueBridgeExtension extends Extension
             )),
             $config['topic'] ?: 'messages',
             $config['queue'] ?: 'messages',
-            $container->getParameter('kernel.debug')
+            $container->getParameter('kernel.debug'),
         ));
         $receiverDefinition->addTag('messenger.receiver');
 
@@ -57,9 +57,9 @@ class EnqueueBridgeExtension extends Extension
         $senderDefinition->setPublic(true);
         $senderDefinition->addTag('messenger.sender');
 
-        $container->setDefinitions([
+        $container->setDefinitions(array(
             'enqueue_bridge.receiver' => $receiverDefinition,
             'enqueue_bridge.sender' => $senderDefinition,
-        ]);
+        ));
     }
 }
