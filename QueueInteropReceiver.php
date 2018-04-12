@@ -28,6 +28,7 @@ class QueueInteropReceiver implements ReceiverInterface
     private $topicName;
     private $receiveTimeout;
     private $debug;
+    private $continue = true;
 
     public function __construct(DecoderInterface $messageDecoder, ContextManager $contextManager, string $queueName, string $topicName, $debug = false)
     {
@@ -45,6 +46,16 @@ class QueueInteropReceiver implements ReceiverInterface
      */
     public function receive(): iterable
     {
+        if (function_exists('pcntl_signal')) {
+            $stop = function (int $signo) {
+                $this->continue = false;
+            };
+
+            foreach (array(SIGTERM, SIGINT, SIGQUIT) as $signo) {
+                pcntl_signal($signo, $stop);
+            }
+        }
+
         $psrContext = $this->contextManager->psrContext();
         $queue = $psrContext->createQueue($this->queueName);
         $consumer = $psrContext->createConsumer($queue);
@@ -54,7 +65,11 @@ class QueueInteropReceiver implements ReceiverInterface
             $this->contextManager->ensureExists($destination);
         }
 
-        while (true) {
+        while ($this->continue) {
+            if (function_exists('pcntl_signal_dispatch')) {
+                pcntl_signal_dispatch();
+            }
+
             try {
                 if (null === ($message = $consumer->receive($this->receiveTimeout))) {
                     continue;
