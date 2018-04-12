@@ -18,6 +18,9 @@
     "require": {
         "enqueue/enqueue-bundle": "^0.8.0"
     },
+    "suggest": {
+        "ext-pcntl": "Handles the quit signals with worker process"
+    },
     "autoload": {
         "psr-4": { "Sam\\Symfony\\Bridge\\EnqueueMessage\\": "" }
     },
