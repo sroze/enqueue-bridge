@@ -28,6 +28,7 @@ class QueueInteropReceiver implements ReceiverInterface
     private $topicName;
     private $receiveTimeout;
     private $debug;
+    private $shouldStop;
 
     public function __construct(DecoderInterface $messageDecoder, ContextManager $contextManager, string $queueName, string $topicName, $debug = false)
     {
@@ -43,7 +44,7 @@ class QueueInteropReceiver implements ReceiverInterface
     /**
      * {@inheritdoc}
      */
-    public function receive(): iterable
+    public function receive(callable $handler): void
     {
         $psrContext = $this->contextManager->psrContext();
         $queue = $psrContext->createQueue($this->queueName);
@@ -54,9 +55,10 @@ class QueueInteropReceiver implements ReceiverInterface
             $this->contextManager->ensureExists($destination);
         }
 
-        while (true) {
+        while (!$this->shouldStop) {
             try {
                 if (null === ($message = $consumer->receive($this->receiveTimeout))) {
+                    $handle(null);
                     continue;
                 }
             } catch (\Exception $e) {
@@ -68,11 +70,11 @@ class QueueInteropReceiver implements ReceiverInterface
             }
 
             try {
-                yield $this->messageDecoder->decode(array(
+                $handle($this->messageDecoder->decode(array(
                     'body' => $message->getBody(),
                     'headers' => $message->getHeaders(),
                     'properties' => $message->getProperties(),
-                ));
+                )));
 
                 $consumer->acknowledge($message);
             } catch (RejectMessageException $e) {
@@ -83,5 +85,10 @@ class QueueInteropReceiver implements ReceiverInterface
                 $consumer->reject($message);
             }
         }
+    }
+
+    public function stop(): void
+    {
+        $this->shouldStop = true;
     }
 }
