@@ -58,7 +58,7 @@ class QueueInteropReceiver implements ReceiverInterface
         while (!$this->shouldStop) {
             try {
                 if (null === ($message = $consumer->receive($this->receiveTimeout))) {
-                    $handle(null);
+                    $handler(null);
                     continue;
                 }
             } catch (\Exception $e) {
@@ -70,7 +70,7 @@ class QueueInteropReceiver implements ReceiverInterface
             }
 
             try {
-                $handle($this->messageDecoder->decode(array(
+                $handler($this->messageDecoder->decode(array(
                     'body' => $message->getBody(),
                     'headers' => $message->getHeaders(),
                     'properties' => $message->getProperties(),
